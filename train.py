@@ -1,60 +1,118 @@
 # File: train.py
+# Version 2.0 - Handles training for both static and dynamic scenarios.
+# Implemented carefully to separate models and logs.
+
 import os
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.monitor import Monitor
 from qkd_env import SatelliteQKDEnv
 
-def main():
-    # --- Parameters ---
-    LOG_DIR = "logs"
-    MODEL_DIR = "models"
-    TOTAL_TIMESTEPS = 100_000 # Bắt đầu với số bước nhỏ để test
+def train_scenario(dynamic_weather: bool, model_name_suffix: str, total_timesteps: int):
+    """
+    A helper function to encapsulate the training process for a single scenario.
+
+    :param dynamic_weather: Boolean flag to set the environment mode.
+    :param model_name_suffix: String to append to folder names (e.g., "static" or "dynamic").
+    :param total_timesteps: The total number of steps to train the agent.
+    """
+    scenario_name = "Dynamic" if dynamic_weather else "Static"
+    print(f"\n{'='*50}")
+    print(f"--- Starting Training for {scenario_name} Scenario ---")
+    print(f"{'='*50}")
+
+    # --- 1. Define Paths ---
+    # Create separate directories for logs and models for each scenario
+    log_dir = os.path.join("logs", model_name_suffix)
+    model_dir = os.path.join("models", model_name_suffix)
+    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(model_dir, exist_ok=True)
     
-    os.makedirs(LOG_DIR, exist_ok=True)
-    os.makedirs(MODEL_DIR, exist_ok=True)
-
-    # --- Create Environment ---
-    print("Creating the SatelliteQKDEnv...")
-    env = SatelliteQKDEnv(num_ogs=5)
-    env.reset(seed=42) # Reset lần đầu để khởi tạo
-
-    # --- Setup Model ---
-    # Kiểm tra xem GPU có sẵn không
+    # --- 2. Create and Wrap the Environment ---
+    print(f"Creating SatelliteQKDEnv with dynamic_weather={dynamic_weather}")
+    # Instantiate the custom environment
+    env = SatelliteQKDEnv(num_ogs=5, dynamic_weather=dynamic_weather)
+    
+    # It's good practice to wrap the environment with Monitor and DummyVecEnv
+    # Monitor keeps track of episode statistics (reward, length)
+    env = Monitor(env)
+    # DummyVecEnv is a wrapper for single, non-vectorized environments
+    env = DummyVecEnv([lambda: env])
+    
+    # --- 3. Instantiate the PPO Model ---
+    # Check for available GPU device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
-    # PPO là một thuật toán mạnh mẽ, phù hợp cho cả action space rời rạc và liên tục
+    # PPO is a robust on-policy algorithm suitable for this problem.
+    # We use "MlpPolicy" as our observation space is a flat vector.
     model = PPO(
-        "MlpPolicy",          # Sử dụng mạng Multi-Layer Perceptron
+        "MlpPolicy",
         env,
-        verbose=1,            # In ra thông tin huấn luyện
-        tensorboard_log=LOG_DIR,
-        device=device
+        verbose=1,            # Print training progress to the console
+        tensorboard_log=log_dir, # Save logs for TensorBoard
+        device=device,
+        # Hyperparameters can be tuned, but defaults are often a good start
+        # n_steps=2048,
+        # batch_size=64,
+        # n_epochs=10,
+        # gamma=0.99,
     )
 
-    # --- Setup Callbacks ---
-    # Lưu lại model sau mỗi 10,000 bước
+    # --- 4. Setup Callbacks ---
+    # The CheckpointCallback saves the model periodically during training.
+    # This is useful for long training runs to avoid losing progress.
     checkpoint_callback = CheckpointCallback(
-        save_freq=10_000,
-        save_path=MODEL_DIR,
-        name_prefix="ppo_qkd_model"
+        save_freq=20_000, # Save a checkpoint every 20,000 steps
+        save_path=model_dir,
+        name_prefix="ppo_qkd_checkpoint"
     )
 
-    # --- Train the Model ---
-    print("--- Starting Training ---")
+    # --- 5. Start Training ---
+    print(f"\nTraining for {total_timesteps} timesteps...")
+    # The learn() method starts the training loop
     model.learn(
-        total_timesteps=TOTAL_TIMESTEPS,
-        callback=checkpoint_callback
+        total_timesteps=total_timesteps,
+        callback=checkpoint_callback,
+        # Provide a name for the TensorBoard run
+        tb_log_name="PPO"
     )
-    print("--- Training Finished ---")
+    print(f"--- Training Finished for {scenario_name} Scenario ---")
 
-    # --- Save the Final Model ---
-    final_model_path = os.path.join(MODEL_DIR, "ppo_qkd_model_final.zip")
+    # --- 6. Save the Final Model ---
+    # After training is complete, save the final version of the model.
+    final_model_path = os.path.join(model_dir, "final_model.zip")
     model.save(final_model_path)
-    print(f"Final model saved to {final_model_path}")
+    print(f"Final model for {scenario_name} scenario saved to {final_model_path}")
     
+    # Close the environment
     env.close()
+
+def main():
+    """
+    Main function to run the entire training pipeline for both scenarios.
+    """
+    # --- Scenario 1: Static Environment ---
+    # This agent learns in a predictable world without long-term disruptions.
+    # 100,000 timesteps is a reasonable starting point.
+    train_scenario(
+        dynamic_weather=False, 
+        model_name_suffix="static", 
+        total_timesteps=100_000
+    )
+    
+    # --- Scenario 2: Dynamic Environment ---
+    # This agent must learn a more complex policy to handle unpredictable,
+    # long-lasting cloud cover. It requires more training to learn these
+    # long-term dependencies. We use 200,000 timesteps.
+    train_scenario(
+        dynamic_weather=True, 
+        model_name_suffix="dynamic", 
+        total_timesteps=200_000
+    )
+    print("\nAll training sessions complete.")
 
 if __name__ == '__main__':
     main()
