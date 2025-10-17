@@ -83,9 +83,9 @@ def main():
     """
     # Define the training plan
     training_plan = {
-        "static": 100_000,
-        "dynamic": 200_000,
-        "realistic": 300_000,
+        #"static": 100_000,
+        #"dynamic": 200_000,
+        "realistic": 3_000_000,
     }
 
     for scenario_name, timesteps in training_plan.items():
