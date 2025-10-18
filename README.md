@@ -112,7 +112,7 @@ This is the main step to reproduce the figures and tables from our paper.
 If you find this work useful in your research, please consider citing our paper:
 ```bibtex
 @article{Do2025AILET,
-  author    = {Do, Phuc Hao and {Your Co-authors}},
+  author    = {Do, Phuc Hao},
   title     = {An Empirical Study of Deep Reinforcement Learning for Dynamic Scheduling in Satellite QKD Networks},
   journal   = {ACM AI Letters},
   year      = {2025},
