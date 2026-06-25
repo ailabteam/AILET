@@ -1,9 +1,13 @@
 # Pinned for reproducibility of the revision experiments.
-# numpy is held below 2.0 because the torch / SB3 stack below is not numpy-2 safe.
-numpy==1.26.4
+# NOTE: numpy 2.x is REQUIRED — the released realistic_3M model was saved under
+# numpy 2.x (its pickle references numpy._core), so the whole stack must be
+# numpy-2 compatible: torch>=2.3 and stable-baselines3>=2.4.
+# On a CUDA server install torch from the cu121 index:
+#   pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+numpy==2.1.3
 gymnasium==0.29.1
-stable-baselines3==2.3.2
-torch==2.2.2
+stable-baselines3==2.4.1
+torch==2.4.1
 skyfield==1.49
 pandas==2.2.2
 matplotlib==3.8.4

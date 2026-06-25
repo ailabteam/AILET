@@ -1,8 +1,9 @@
 # Conda environment for the Sat-QKD DRL revision experiments.
 #   conda env create -f environment.yml
 #   conda activate qkd-revision
-# For a CUDA GPU server, after creating the env install the matching torch wheel:
-#   pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+# For a CUDA GPU server, after creating the env install the matching torch wheel
+# (numpy-2 compatible build is required to load the released model):
+#   pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
 name: qkd-revision
 channels:
   - conda-forge
