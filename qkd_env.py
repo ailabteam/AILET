@@ -149,12 +149,17 @@ class SatelliteQKDEnv(gym.Env):
             is_switching = (action != self.last_action) and (action != self.num_ogs)
             if is_switching:
                 self.setup_time_remaining = self.SWITCHING_COST_MINUTES
-            
-            # Count down the setup time
-            if self.setup_time_remaining > 0:
-                self.setup_time_remaining -= 1
 
+        # Compute reward BEFORE counting down the setup timer. This makes a nominal
+        # switching cost of C minutes forfeit exactly C minutes of throughput. The
+        # previous order decremented first, so the switching step itself was already
+        # out of setup, costing only C-1 minutes (e.g. cost=1 was indistinguishable
+        # from cost=0). Fixing this off-by-one makes the stated "C-minute cost" exact.
         reward = self._calculate_reward(action)
+
+        if self.has_switching_cost and self.setup_time_remaining > 0:
+            self.setup_time_remaining -= 1
+
         self.current_time += SIMULATION_STEP
         
         if self.is_dynamic_weather:

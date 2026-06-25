@@ -18,10 +18,17 @@ original training/eval scripts are unchanged; everything here is additive.
 **Honest note on the expected outcome.** In this single-LEO / 5-OGS setting most
 link switches are *forced by orbital geometry* (the held OGS sets below the
 horizon), not discretionary. The cost-aware Hybrid therefore does **not** reliably
-beat plain Greedy; and beyond a switching cost of roughly one pass duration (~6-8
+beat plain Greedy; and beyond a switching cost of roughly one pass duration (~5
 min) every policy collapses to zero. These are reported as findings, not hidden.
-Also, multi-seed evaluation will shift the original single-seed headline numbers
+Also, multi-seed evaluation shifts the original single-seed headline numbers
 (Greedy ~4334 was a single seed); report the new mean ± std honestly.
+
+**Corrected switching-cost dynamics.** `qkd_env.step` previously decremented the
+setup timer before computing the reward, so a nominal C-minute switching cost only
+forfeited C-1 minutes (cost=1 was identical to cost=0). This is fixed: a C-minute
+cost now forfeits exactly C minutes. All models must therefore be retrained under
+the corrected env via `train_revision.py` (the released static/dynamic models are
+also stale: they used an older 25-dim observation and no longer load).
 
 ## Setup (conda + tmux on the server)
 
@@ -39,26 +46,29 @@ python verify_gpu.py        # confirm CUDA is visible
 # 0. correctness (seconds, no GPU)
 python smoke_test_revision.py
 
-# 1. multi-seed headline re-evaluation with the EXISTING 3M model (minutes, CPU ok)
-python evaluate_revision.py --scenario realistic --seeds 20
-python evaluate_revision.py --scenario static    --model "" --seeds 20
-python evaluate_revision.py --scenario dynamic   --model "" --seeds 20
+# 1. RETRAIN everything under the corrected env (GPU, several hours) — run in tmux.
+#    Trains static, dynamic, the cost=2 headline (3M), and per-cost ablation models.
+tmux new -s train
+python train_revision.py            # adjust --headline-steps / --ablation-steps to budget
+#    (detach: Ctrl-b d ; reattach: tmux attach -t train ; watch GPU: watch -n2 nvidia-smi)
 
-# 2. hybrid margin operating point (minutes, CPU ok)
+# 2. multi-seed evaluation of the headline scenarios (minutes, CPU ok)
+python evaluate_revision.py --scenario realistic --seeds 20
+python evaluate_revision.py --scenario static    --seeds 20
+python evaluate_revision.py --scenario dynamic   --seeds 20
+
+# 3. hybrid margin operating point (minutes, CPU ok)
 python tune_hybrid_margin.py --switching-cost 2 --seeds 20
 
-# 3a. quick ablation with heuristics + the fixed 3M model (minutes, CPU ok)
-tmux new -s ablation
+# 4. ablation across switching cost, now with per-cost-optimal DRL (minutes, CPU ok)
 python ablation_switching_cost.py --seeds 20
 
-# 3b. RIGOROUS ablation: retrain one PPO per cost, then re-run 3a (GPU, hours)
-tmux new -s train
-python train_ablation.py --costs 0 1 4 6 --timesteps 1000000
-#   then re-run:
-python ablation_switching_cost.py --seeds 20
+# 5. learning curve for the headline model (Fig 2a)
+python plot_checkpoint_performance.py
 ```
 
-Detach tmux with `Ctrl-b d`, reattach with `tmux attach -t train`.
+If GPU time is tight, lower `--headline-steps` (e.g. 1000000) and `--ablation-steps`
+(e.g. 500000); the qualitative conclusions are unchanged.
 
 ## Outputs
 

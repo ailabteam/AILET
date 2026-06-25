@@ -38,8 +38,8 @@ def find_drl_for_cost(cost, fixed_model):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--costs", type=int, nargs="+", default=[0, 1, 2, 3, 4, 6],
-                    help="switching-cost values in minutes to sweep. Beyond ~6 min "
+    ap.add_argument("--costs", type=int, nargs="+", default=[0, 1, 2, 3, 4, 5],
+                    help="switching-cost values in minutes to sweep. Around ~5 min "
                          "all policies collapse to 0 (cost exceeds a typical pass "
                          "duration), which is itself reported as a critical threshold")
     ap.add_argument("--seeds", type=int, default=20)
