@@ -25,7 +25,7 @@ class SatelliteQKDEnv(gym.Env):
     """
     metadata = {'render_modes': ['human']}
 
-    def __init__(self, num_ogs=5, scenario="static"):
+    def __init__(self, num_ogs=5, scenario="static", switching_cost_minutes=2):
         super(SatelliteQKDEnv, self).__init__()
 
         # --- Basic Setup ---
@@ -48,8 +48,13 @@ class SatelliteQKDEnv(gym.Env):
             self.cloud_duration_range = (15, 30)
         
         self.setup_time_remaining = 0
+        # Switching cost magnitude is now configurable to enable sensitivity analysis.
+        # It is stored for all scenarios so external policies can query it; it only
+        # affects dynamics when has_switching_cost is True.
+        self.SWITCHING_COST_MINUTES = int(switching_cost_minutes)
         if self.has_switching_cost:
-            self.SWITCHING_COST_MINUTES = 2
+            if self.SWITCHING_COST_MINUTES < 0:
+                raise ValueError("switching_cost_minutes must be >= 0")
         
         # --- Internal State ---
         self.last_action = -1 # -1 denotes no previous action (or reset)
@@ -100,7 +105,8 @@ class SatelliteQKDEnv(gym.Env):
             obs_parts.extend(normalized_cloud_status)
         
         if self.has_switching_cost:
-            normalized_setup_time = self.setup_time_remaining / self.SWITCHING_COST_MINUTES
+            denom = self.SWITCHING_COST_MINUTES if self.SWITCHING_COST_MINUTES > 0 else 1
+            normalized_setup_time = self.setup_time_remaining / denom
             obs_parts.append(normalized_setup_time)
             
         return np.array(obs_parts, dtype=np.float32)

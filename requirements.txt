@@ -1,0 +1,10 @@
+# Pinned for reproducibility of the revision experiments.
+# numpy is held below 2.0 because the torch / SB3 stack below is not numpy-2 safe.
+numpy==1.26.4
+gymnasium==0.29.1
+stable-baselines3==2.3.2
+torch==2.2.2
+skyfield==1.49
+pandas==2.2.2
+matplotlib==3.8.4
+seaborn==0.13.2
