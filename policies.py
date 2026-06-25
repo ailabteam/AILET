@@ -115,6 +115,30 @@ class HybridPolicy:
         return self.current
 
 
+def _install_numpy2_unpickle_shim():
+    """Allow a numpy-1 runtime to unpickle objects saved under numpy 2.x.
+
+    numpy 2.0 renamed the private package numpy.core -> numpy._core. Pickles created
+    under numpy 2 reference 'numpy._core.*', which does not exist in numpy 1.26, so
+    cloudpickle.loads raises ModuleNotFoundError. We alias the new names onto the old
+    modules so any numpy-2 array/scalar in the saved SB3 model deserializes. This is
+    version-proof and covers every pickled key, not just the spaces."""
+    import sys
+    try:
+        import numpy.core as _np_core
+    except Exception:
+        return
+    sys.modules.setdefault("numpy._core", _np_core)
+    for sub in ["numeric", "multiarray", "umath", "_multiarray_umath", "overrides",
+                "fromnumeric", "_methods", "shape_base", "numerictypes",
+                "_dtype", "_dtype_ctypes", "einsumfunc"]:
+        try:
+            mod = __import__(f"numpy.core.{sub}", fromlist=[sub])
+            sys.modules.setdefault(f"numpy._core.{sub}", mod)
+        except Exception:
+            pass
+
+
 class DRLPolicy:
     """Wraps a Stable-Baselines3 PPO model. Imported lazily so the heuristic
     policies and the environment can be smoke-tested without torch/SB3.
@@ -130,6 +154,7 @@ class DRLPolicy:
 
     def __init__(self, model_path, ref_env, device="cpu"):
         from stable_baselines3 import PPO  # local import on purpose
+        _install_numpy2_unpickle_shim()
         custom_objects = {
             "observation_space": ref_env.observation_space,
             "action_space": ref_env.action_space,
