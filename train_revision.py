@@ -42,8 +42,17 @@ def train(scenario, total_timesteps, model_dir, switching_cost_minutes=2,
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
+    # TensorBoard logging is optional: the learning curve (Fig 2a) is regenerated
+    # from saved checkpoints, not from TB logs, so don't hard-fail if it's absent.
+    try:
+        import tensorboard  # noqa: F401
+        tb_log = log_dir
+    except Exception:
+        print("(tensorboard not installed; training without TB logging)")
+        tb_log = None
+
     model = PPO("MlpPolicy", env, verbose=1, seed=seed,
-                tensorboard_log=log_dir, device=device)
+                tensorboard_log=tb_log, device=device)
     ckpt = CheckpointCallback(save_freq=ckpt_freq, save_path=model_dir,
                               name_prefix=f"ppo_{os.path.basename(model_dir)}")
     model.learn(total_timesteps=total_timesteps, callback=ckpt,
