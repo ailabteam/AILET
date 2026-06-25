@@ -59,14 +59,23 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scenario", default="realistic",
                     choices=["static", "dynamic", "realistic"])
-    ap.add_argument("--model", default="models/realistic_3M/final_model.zip",
-                    help="DRL model path; ignored if missing")
+    ap.add_argument("--model", default=None,
+                    help="DRL model path. If omitted, picks the model matching the "
+                         "scenario (static/dynamic/realistic). Pass '' to skip DRL.")
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--seeds", type=int, default=20, help="number of seeds")
     ap.add_argument("--seed-start", type=int, default=1000)
     ap.add_argument("--switching-cost", type=int, default=2)
     ap.add_argument("--hybrid-margin", type=float, default=15.0)
     args = ap.parse_args()
+
+    # Resolve the scenario-matched model when --model is not given explicitly.
+    if args.model is None:
+        args.model = {
+            "static": "models/static/final_model.zip",
+            "dynamic": "models/dynamic/final_model.zip",
+            "realistic": "models/realistic_3M/final_model.zip",
+        }[args.scenario]
 
     seeds = list(range(args.seed_start, args.seed_start + args.seeds))
     policies = build_policies(args.scenario, args.switching_cost, args.model,

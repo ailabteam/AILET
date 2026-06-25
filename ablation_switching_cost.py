@@ -27,12 +27,14 @@ from policies import GreedyPolicy, HybridPolicy, RandomPolicy, DRLPolicy
 
 
 def find_drl_for_cost(cost, fixed_model):
-    """Prefer a model retrained at this exact cost; fall back to the fixed model."""
+    """Prefer a model retrained at this exact cost; fall back to the fixed model.
+    The label is kept constant ("DRL") so all per-cost points form a single
+    connected series in the plot rather than one disconnected point each."""
     per_cost = os.path.join("models", f"ablation_cost{cost}", "final_model.zip")
     if os.path.exists(per_cost):
-        return per_cost, f"DRL(c={cost})"
+        return per_cost, "DRL"
     if fixed_model and os.path.exists(fixed_model):
-        return fixed_model, "DRL(fixed c=2)"
+        return fixed_model, "DRL"
     return None, None
 
 

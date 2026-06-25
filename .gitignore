@@ -3,3 +3,6 @@ __pycache__/
 .venv-smoke/
 .venv/
 results/
+
+.venv-eval/
+run_eval_all.sh
