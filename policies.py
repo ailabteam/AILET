@@ -117,13 +117,26 @@ class HybridPolicy:
 
 class DRLPolicy:
     """Wraps a Stable-Baselines3 PPO model. Imported lazily so the heuristic
-    policies and the environment can be smoke-tested without torch/SB3."""
+    policies and the environment can be smoke-tested without torch/SB3.
+
+    The released models were saved under numpy 2.x (their pickled spaces reference
+    numpy._core), while SB3 still requires numpy<2 at runtime. To load them under a
+    numpy-1 stack we pass `custom_objects` built from a reference environment, so
+    SB3 skips deserializing the numpy-2 pickled observation/action spaces and
+    learning-rate / clip-range schedules. This is version-proof: it does not depend
+    on the exact numpy/SB3 version the model was trained with."""
 
     name = "DRL"
 
-    def __init__(self, model_path, device="cpu"):
+    def __init__(self, model_path, ref_env, device="cpu"):
         from stable_baselines3 import PPO  # local import on purpose
-        self.model = PPO.load(model_path, device=device)
+        custom_objects = {
+            "observation_space": ref_env.observation_space,
+            "action_space": ref_env.action_space,
+            "lr_schedule": lambda _: 0.0,
+            "clip_range": lambda _: 0.0,
+        }
+        self.model = PPO.load(model_path, device=device, custom_objects=custom_objects)
 
     def reset(self):
         pass

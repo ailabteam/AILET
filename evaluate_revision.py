@@ -42,10 +42,14 @@ def evaluate_policy(scenario, policy, seeds, switching_cost_minutes=2):
     return rewards
 
 
-def build_policies(model_path=None, device="cpu", hybrid_margin=15.0):
+def build_policies(scenario, switching_cost_minutes, model_path=None,
+                   device="cpu", hybrid_margin=15.0):
     policies = [GreedyPolicy(), HybridPolicy(margin_deg=hybrid_margin), RandomPolicy()]
     if model_path and os.path.exists(model_path):
-        policies.insert(0, DRLPolicy(model_path, device=device))
+        # Reference env supplies the spaces used to bypass the numpy-2 pickle.
+        ref_env = SatelliteQKDEnv(num_ogs=5, scenario=scenario,
+                                  switching_cost_minutes=switching_cost_minutes)
+        policies.insert(0, DRLPolicy(model_path, ref_env, device=device))
     elif model_path:
         print(f"WARNING: DRL model not found at {model_path}; skipping DRL.")
     return policies
@@ -65,7 +69,8 @@ def main():
     args = ap.parse_args()
 
     seeds = list(range(args.seed_start, args.seed_start + args.seeds))
-    policies = build_policies(args.model, args.device, args.hybrid_margin)
+    policies = build_policies(args.scenario, args.switching_cost, args.model,
+                              args.device, args.hybrid_margin)
 
     print(f"\nScenario={args.scenario}  switching_cost={args.switching_cost} min  "
           f"seeds={args.seeds}")

@@ -1,12 +1,13 @@
 # Pinned for reproducibility of the revision experiments.
-# NOTE: numpy 2.x is REQUIRED — the released realistic_3M model was saved under
-# numpy 2.x (its pickle references numpy._core), so the whole stack must be
-# numpy-2 compatible: torch>=2.3 and stable-baselines3>=2.4.
+# NOTE on numpy: stable-baselines3 still requires numpy<2, so we stay on numpy 1.26.
+# The released realistic_3M model was saved under numpy 2.x; we load it via
+# custom_objects in DRLPolicy (see policies.py), which bypasses the numpy-2 pickled
+# spaces, so a numpy-1 runtime loads it fine. torch 2.4.1 works with numpy 1.26.
 # On a CUDA server install torch from the cu121 index:
 #   pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
-numpy==2.1.3
+numpy==1.26.4
 gymnasium==0.29.1
-stable-baselines3==2.4.1
+stable-baselines3==2.3.2
 torch==2.4.1
 skyfield==1.49
 pandas==2.2.2

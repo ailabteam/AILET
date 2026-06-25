@@ -21,6 +21,7 @@ import os
 import argparse
 import numpy as np
 
+from qkd_env import SatelliteQKDEnv
 from evaluate_revision import evaluate_policy
 from policies import GreedyPolicy, HybridPolicy, RandomPolicy, DRLPolicy
 
@@ -62,7 +63,9 @@ def main():
             path, label = find_drl_for_cost(cost, args.fixed_model)
             if path is not None:
                 if path not in drl_cache:
-                    drl_cache[path] = DRLPolicy(path, device=args.device)
+                    ref_env = SatelliteQKDEnv(num_ogs=5, scenario="realistic",
+                                              switching_cost_minutes=cost)
+                    drl_cache[path] = DRLPolicy(path, ref_env, device=args.device)
                 drl = drl_cache[path]
                 drl.name = label
                 policies.insert(0, drl)
