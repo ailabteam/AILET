@@ -1,0 +1,149 @@
+\documentclass[manuscript, review, nonacm]{acmart}
+
+% --- PACKAGES ---
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+% \usepackage{lipsum} % Removed for final version
+\usepackage{subcaption}
+\usepackage{siunitx}
+\usepackage{url}
+
+% --- LATEX TWEAKS FOR SPACE SAVING ---
+\setlength{\textfloatsep}{8pt plus 1.0pt minus 2.0pt}
+\setlength{\floatsep}{8pt plus 1.0pt minus 2.0pt}
+\setlength{\intextsep}{8pt plus 1.0pt minus 2.0pt}
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+
+\begin{document}
+
+\title{An Empirical Study of Deep Reinforcement Learning for Dynamic Scheduling in Satellite QKD Networks}
+
+\author{Phuc Hao Do}
+\orcid{0000-0003-0645-0021}
+\affiliation{\institution{Danang Architecture University} \city{Da Nang} \country{Viet Nam}}
+\email{haodp@dau.edu.vn}
+\affiliation{\institution{The Bonch-Bruevich Saint Petersburg State University of Telecommunications} \city{Saint Petersburg} \country{Russia}}
+\email{do.hf@sut.ru}
+
+\begin{abstract}
+Efficiently scheduling links for satellite-based Quantum Key Distribution (QKD) networks is critical for global secure communication but remains a formidable challenge due to dynamic orbital and atmospheric conditions. This letter investigates the efficacy of Deep Reinforcement Learning (DRL) for this task by training an agent in three simulation environments of increasing complexity: \textit{Static}, \textit{Dynamic} (with disruptions), and \textit{Realistic} (with operational costs). Our central finding is counterintuitive: despite extensive training of 3 million timesteps, the DRL agent, while learning complex behaviors, fails to outperform a strong, domain-aware greedy heuristic in the most realistic scenario. This result serves as a crucial case study on the practical application of DRL, highlighting the surprising robustness of well-designed heuristics and providing a valuable benchmark for future research.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+   <concept><concept_id>10010147.10010257.10010258.10010261</concept_id><concept_desc>Computing methodologies~Reinforcement learning</concept_desc><concept_significance>500</concept_significance></concept>
+   <concept><concept_id>10002978.10003022.10003023</concept_id><concept_desc>Security and privacy~Quantum cryptography</concept_desc><concept_significance>500</concept_significance></concept>
+</ccs2012>
+\end{CCSXML}
+\ccsdesc[500]{Computing methodologies~Reinforcement learning}
+\ccsdesc[500]{Security and privacy~Quantum cryptography}
+\keywords{Deep Reinforcement Learning, QKD, Satellite Networks, Scheduling}
+
+\maketitle
+
+\section{Introduction}\label{sec:introduction}
+The demand for unconditionally secure communication has positioned Satellite-based Quantum Key Distribution (Sat-QKD) as a vital technology for a global quantum network \cite{gisin2002quantum, liao2017satellite}. However, its efficiency hinges on a complex dynamic scheduling problem: selecting the optimal ground station (OGS) to connect with. This decision is complicated by orbital mechanics \cite{deniz2021routing} and unpredictable atmospheric disruptions \cite{bourgoin2013comprehensive}, rendering static or simple greedy strategies suboptimal \cite{oi2021optimization}. Deep Reinforcement Learning (DRL) provides a powerful, model-free framework to address such dynamic control problems \cite{sutton2018reinforcement}.
+
+In this letter, we present a rigorous empirical study of DRL for Sat-QKD scheduling\footnote{Source code: \url{https://github.com/ailabteam/AILET}}. We design a simulation with three environments of increasing complexity: \textit{Static}, \textit{Dynamic} (with cloud cover), and \textit{Realistic} (adding link-switching costs). Our findings reveal that while DRL excels in simpler scenarios, it struggles to outperform a strong greedy heuristic in the most realistic setting, even after 3 million training steps. This work highlights the challenges of applying standard DRL to cost-aware problems and underscores the surprising efficacy of well-designed heuristics.
+
+\section{Problem Formulation}\label{sec:formulation}
+
+To address the Sat-QKD scheduling challenge, we model the task as a Markov Decision Process (MDP), a standard framework for sequential decision-making \cite{sutton2018reinforcement}. An MDP is defined by a tuple $(\mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma)$, representing the state space, action space, transition probabilities, reward function, and a discount factor $\gamma \in [0, 1]$. The agent's goal is to learn a policy $\pi(a|s)$ that maximizes the expected discounted return $G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}$. We now detail our instantiation of the key MDP components.
+
+\textbf{State Space ($\mathcal{S}$):} The agent observes a state vector $s_t \in \mathbb{R}^D$ at each timestep $t$, which is a concatenation of normalized features, $s_t = [s_t^{\text{time,sat}} \oplus s_t^{\text{ogs}} \oplus s_t^{\text{scenario}}]$. The base component, $s_t^{\text{time,sat}}$, is a 4-dimensional vector containing the minute of the day and the satellite's geographic coordinates (latitude, longitude, altitude), derived from its TLE set \cite{vallado2001fundamentals}. For each of the $N_{\text{ogs}}$ ground stations, the state includes a 3-dimensional link vector, $v_i = [\text{elev}_i, \text{az}_i, \text{dist}_i]$, representing the link's elevation, azimuth, and distance. The full link state is $s_t^{\text{ogs}} = [v_1 \oplus \dots \oplus v_{N_{\text{ogs}}}]$. Finally, the scenario-specific component, $s_t^{\text{scenario}}$, provides crucial information for advanced strategies. In our most complex \textit{Realistic} scenario, this includes a cloud cover vector $c_t \in \mathbb{R}^{N_{\text{ogs}}}$ and a scalar link setup timer $\tau_t \in \mathbb{R}$. The total state dimension $D$ thus varies from $4+3N_{\text{ogs}}$ to $5+4N_{\text{ogs}}$ depending on the scenario.
+
+\textbf{Action Space ($\mathcal{A}$):} We define a discrete action space $\mathcal{A} = \{0, 1, \dots, N_{\text{ogs}}\}$. An action $a_t = i < N_{\text{ogs}}$ corresponds to attempting a connection with $\text{OGS}_i$, while $a_t = N_{\text{ogs}}$ is the \textit{idle} action. This finite set of choices is directly compatible with the PPO algorithm used in this work \cite{schulman2017proximal}.
+
+\textbf{Reward Function ($\mathcal{R}$):} The reward function $r_{t+1}$ is engineered to guide the agent towards maximizing the total secure key throughput. A positive reward is granted for valid, unobstructed connections, proportional to the secure key rate $K_i$. This rate is modeled based on the channel transmittance $\eta_i$, which is dominated by the free-space path loss dependent on the satellite-to-ground distance \cite{liao2017satellite, bourgoin2013comprehensive}. Conversely, negative rewards (penalties) are issued for invalid actions, such as selecting an OGS that is obscured by clouds or is below the minimum elevation threshold. In the \textit{Realistic} scenario, a small penalty is also incurred during the link setup period to model switching costs. The \textit{idle} action yields a neutral reward of zero. This structure incentivizes the agent to maximize connection time with high-quality links while respecting operational constraints.
+
+The complete agent-environment interaction loop is visualized in Figure~\ref{fig:system_diagram}. The agent iteratively observes the state, selects an action, and receives a reward, allowing it to continuously refine its scheduling policy.
+
+% --- FIGURE 1: SYSTEM DIAGRAM (Keep as is) ---
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.7\linewidth]{system_diagram.pdf}
+  \caption{The agent-environment interaction loop formulated as an MDP for the Sat-QKD scheduling problem. The DRL agent receives a state vector comprising satellite position, link geometry, and environmental data. It outputs a scheduling action, and the environment returns a reward based on the resulting secure key rate and operational costs.}
+  \label{fig:system_diagram}
+\end{figure}
+
+
+
+\section{Experimental Setup}\label{sec:setup}
+Our simulation features one LEO satellite and five OGSs over a 24-hour episode. We evaluate agents across three scenarios: (1) a \textit{Static} environment testing geometric optimization; (2) a \textit{Dynamic} environment adding time-correlated cloud cover, forcing reactive avoidance; and (3) a \textit{Realistic} environment adding a 2-minute link-switching cost, requiring long-term, cost-aware strategies.
+
+Our DRL agent uses the Proximal Policy Optimization (PPO) algorithm \cite{schulman2017proximal} with an MLP policy, implemented in Stable Baselines3 \cite{stable-baselines3}. We train specialized agents for each scenario, with the \textit{Realistic} agent trained for an extensive 3 million timesteps. We benchmark against a \textit{Random} policy and a strong, domain-aware \textit{Greedy} policy that selects the best available (unobstructed, visible) OGS but is myopic to switching costs.
+
+\section{Results and Discussion}\label{sec:results}
+
+Our analysis first illustrates the learning dynamics in the \textit{Realistic} scenario, followed by a comparative performance analysis across all environments. As shown in Figure~\ref{fig:combined_results}(a), the DRL agent's performance in the \textit{Realistic} scenario improves substantially with experience. It requires over 500k training steps to find a profitable policy and performance converges after approximately 1 million steps, demonstrating that deep training is essential but that gains eventually plateau.
+
+The final evaluation results are summarized in Table~\ref{tab:results} and Figure~\ref{fig:combined_results}(b). In the \textit{Static} and \textit{Dynamic} scenarios, the DRL agent learns highly competitive policies, matching or nearly matching (98.5\%) the Greedy baseline. This validates its ability to master geometric and reactive strategies. The key finding emerges from the \textit{Realistic} scenario. While the Greedy agent's performance drops by 17\% due to switching costs, the DRL agent, even after 3M steps, achieves a reward of only \num{1881}. This is just 43.4\% of the Greedy agent's score, showing that the extensive training, while beneficial (a 28\% improvement over a 300k-step run), was insufficient to close the gap.
+
+
+% --- NEW, VERTICALLY STACKED FIGURE 2 ---
+\begin{figure}[t]
+    \centering
+    
+    % --- Subfigure (a): Learning Curve ---
+    \begin{subfigure}{0.85\columnwidth} % Use \columnwidth for full column width
+        \centering
+        \includegraphics[width=\linewidth]{checkpoint_performance_plot.pdf}
+        \vspace{-6mm} % Fine-tune vertical space
+        \caption{DRL performance progression in the `Realistic` scenario.}
+        \label{fig:learning_curve}
+    \end{subfigure}
+    
+    \vspace{2mm} % Space between the two subfigures
+    
+    % --- Subfigure (b): Final Comparison ---
+    \begin{subfigure}{0.9\columnwidth} % Use \columnwidth for full column width
+        \centering
+        \includegraphics[width=\linewidth]{final_comparison_with_3M_model.pdf}
+        \vspace{-6mm} % Fine-tune vertical space
+        \caption{Final performance comparison across all scenarios.}
+        \label{fig:final_comparison}
+    \end{subfigure}
+    
+    \vspace{-4mm} % Fine-tune vertical space
+    \caption{Experimental results. (a) illustrates the necessity of deep training, showing performance convergence after ~1M steps. (b) summarizes the final results, highlighting the robustness of the Greedy heuristic.}
+    \label{fig:combined_results}
+    \vspace{-4mm} % Fine-tune vertical space
+\end{figure}
+%%%%
+
+
+% --- TABLE 1: NUMERICAL RESULTS ---
+% (Copy and paste the LaTeX code generated by `evaluate_final.py` here)
+\begin{table*}[t]
+  \centering
+  \caption{Summary of policy performance across all simulation scenarios. Rewards are the total secure key bits generated in a 24-hour simulation. Relative performance is normalized to the Greedy policy in the Realistic scenario.}
+  \label{tab:results}
+  \begin{tabular}{lcccc}
+    \toprule
+    \textbf{Policy} & \textbf{Static Env.} & \textbf{Dynamic Env.} & \textbf{Realistic Env.} & \textbf{Relative Perf.} \\
+    \midrule
+    DRL (300k steps) & -- & -- & \num[group-separator={,}]{1470} & 33.9\% \\ % Recalculated relative perf.
+    DRL (3M steps) & \num[group-separator={,}]{6439} & \num[group-separator={,}]{5143} & \textbf{\num[group-separator={,}]{1881}} & \textbf{43.4\%} \\
+    Greedy & \textbf{\num[group-separator={,}]{6439}} & \textbf{\num[group-separator={,}]{5223}} & \num[group-separator={,}]{4334} & 100.0\% \\
+    Random & \num[group-separator={,}]{-59} & \num[group-separator={,}]{-1839} & \num[group-separator={,}]{-285} & -6.6\% \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+
+Our primary hypothesis is that the DRL agent converged to an \textbf{overly conservative local optimum}. The negative rewards associated with switching costs create a significant barrier to exploration. To avoid these penalties, the agent appears to have learned a "safe" policy that minimizes link switches, possibly by adhering to a suboptimal link for too long or by being too hesitant to initiate a new connection. While this strategy successfully avoids penalties, it also forfeits numerous high-reward opportunities that the more "aggressive" Greedy agent is willing to seize, even at the cost of incurring switching penalties. The net result is that the Greedy agent's accumulated gains from taking risks outweigh its losses from switching costs.
+
+This highlights the \textbf{surprising robustness of a well-designed heuristic}. The Greedy policy, while simple, is domain-aware: it inherently prioritizes the physically dominant factor for key rate (elevation angle) while respecting hard constraints (clouds, visibility). In this problem landscape, this strong inductive bias proves more effective than the model-free exploration of the DRL agent.
+
+These findings have important implications for the practical application of DRL. They suggest that for complex scheduling problems, simply applying a standard DRL algorithm is not a guaranteed path to superior performance, especially when strong, domain-specific heuristics exist. The results underscore the critical challenge of the exploration-exploitation trade-off in environments with significant penalties or delayed rewards. Unlocking the full potential of DRL in such domains may require more advanced techniques, such as curiosity-driven exploration, hierarchical reinforcement learning, or hybrid approaches that integrate learning with classical optimization methods.
+
+
+\section{Conclusion}\label{sec:conclusion}
+In this letter, we presented an empirical study of DRL for Sat-QKD scheduling. We found that while DRL excels at learning predictable dynamics and reactive avoidance, it struggles to outperform a strong greedy heuristic when faced with complex, cost-aware trade-offs, even after extensive training. Our work provides a valuable benchmark and serves as a cautionary case study, suggesting that future research should focus on advanced exploration techniques or hybrid models to unlock the full potential of DRL for managing operational quantum networks.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

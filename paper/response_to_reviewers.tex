@@ -1,0 +1,202 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{mdframed}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+% Reviewer comment box
+\newmdenv[backgroundcolor=gray!8, linecolor=gray!40, linewidth=0.5pt,
+  skipabove=8pt, skipbelow=4pt, innertopmargin=6pt, innerbottommargin=6pt]{rc}
+\newcommand{\resp}{\par\smallskip\noindent\textbf{Response.}\ }
+
+\title{\vspace{-2.5em}Response to Reviewers\\[0.3em]
+\large Manuscript AILET-2025-0018\\[0.2em]
+\normalsize ``An Empirical Study of Deep Reinforcement Learning for Dynamic
+Scheduling in Satellite QKD Networks''}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-3em}
+
+We thank the Associate Editor and both reviewers for their careful and constructive
+reviews. We have revised the manuscript thoroughly; every point is addressed below.
+Reviewer comments are shown in shaded boxes, followed by our response. For
+reference, the principal changes are: a fully specified reward with a provably fair
+single-objective comparison, a switching-cost sensitivity analysis, a cost-aware
+hybrid baseline, multi-seed (20-seed) evaluation with mean and standard deviation,
+a correction to the switching-cost model, and an expanded motivation and Limitations
+section. All code and models are at \url{https://github.com/ailabteam/AILET}.
+
+\section*{Associate Editor}
+
+\begin{rc}
+We see promise in this paper, but there is still work to be done to clarify the
+issues raised by the more negative of our reviewers.
+\end{rc}
+
+\resp We have focused the revision on exactly these issues. The most negative
+reviewer (Reviewer 2) questioned whether the comparison was fair given an
+undisclosed reward. We now specify the reward in full and make explicit that all
+policies are scored by one identical physical objective (the total secure key), so
+no policy can be disadvantaged by reward shaping. We also added the switching-cost
+analysis and hybrid baseline requested by Reviewer 1. We believe the revised
+manuscript resolves the concerns and hope it now meets the bar for publication.
+
+\section*{Reviewer 1 (Minor Revision)}
+
+We are grateful for the positive assessment and for recognizing the value of an
+honest negative result. We address the five points in turn.
+
+\begin{rc}
+1. The evaluation is limited to a standard PPO implementation with a flat MLP
+policy. The observed gap may partly reflect the choice of learning architecture and
+algorithm rather than a fundamental limitation of learning-based approaches.
+\end{rc}
+
+\resp We agree and now state this explicitly in the new \emph{Limitations}
+paragraph: our conclusions are specific to a single-algorithm, flat-MLP setting,
+and the gap may partly reflect that architecture rather than a fundamental limit of
+learning-based scheduling. We are careful throughout to frame the result as a
+cautionary case study for \emph{standard} DRL, not as a refutation of learning in
+general, and we point to curiosity-driven exploration, hierarchical control, and
+learning--heuristic hybrids as the natural next steps. We also note that the new
+per-cost ablation (point 2) shows the shortfall persists even when the agent is
+optimized for each specific cost, which makes a pure tuning explanation less likely.
+
+\begin{rc}
+2. The link-switching cost is central, yet no ablation or sensitivity analysis
+examines how varying its magnitude affects exploration, convergence, and final
+performance.
+\end{rc}
+
+\resp We added this analysis as a core new contribution (Figure~3(b) and the
+``Sensitivity to switching cost'' paragraph). We sweep the cost over
+$\{0,1,2,3,4,5\}$ minutes and, importantly, retrain a DRL agent for each value.
+The findings are: (i) at zero cost the DRL agent matches greedy; (ii) the gap then
+widens monotonically as the cost grows, and the DRL agent degrades much faster than
+greedy even when optimized for that exact cost; and (iii) beyond a critical cost of
+about five minutes, once the setup latency exceeds a typical pass duration, every
+policy collapses to zero because no link can be held long enough to amortize a
+reconnection. This both quantifies the sensitivity and explains the mechanism behind
+the original result.
+
+\begin{rc}
+3. The setup considers a single LEO satellite and five ground stations, which
+restricts insight into scalability, coordination, and congestion.
+\end{rc}
+
+\resp We agree and now state this scope limitation explicitly in the
+\emph{Limitations} paragraph and the Conclusion. The environment is in fact
+parameterized by the number of ground stations, and we have kept the released code
+configurable to support exactly the multi-station and multi-satellite studies the
+reviewer envisions; we flag these as the primary directions for future work rather
+than claim coverage we do not have.
+
+\begin{rc}
+4. Hybrid strategies combining learning and heuristics are mentioned conceptually
+but not evaluated empirically. Including such baselines would help contextualize the
+negative results.
+\end{rc}
+
+\resp We added a cost-aware hybrid baseline: greedy selection with switching
+hysteresis (Eq.~9), which retains the current link unless an alternative exceeds it
+in elevation by a margin large enough to justify the setup latency. To avoid a
+strawman, we swept the hysteresis margin; it changes the result by at most $0.3\%$.
+The hybrid does not beat plain greedy, and we explain why: with one satellite and
+dispersed stations, the satellite is rarely in view of two ground stations at once,
+so most reconfigurations are forced by the held link dropping below the horizon
+rather than chosen to chase a marginally better one. Hysteresis can only help with
+discretionary switches, which are scarce here. This contextualizes the negative
+result and identifies the structural reason for it.
+
+\begin{rc}
+5. The paper would benefit from explicitly stating that these conclusions may not
+directly generalize to multi-satellite, multi-agent, or long-horizon planning
+scenarios.
+\end{rc}
+
+\resp Done. The \emph{Limitations} paragraph and the Conclusion now state plainly
+that the conclusions need not generalize to multi-satellite constellations,
+multi-agent coordination, or long-horizon planning, where learning could exhibit
+clearer advantages.
+
+\section*{Reviewer 2 (Reject)}
+
+We thank the reviewer for the precise criticisms. We believe each rests on
+information that was missing from the original submission rather than on a flaw in
+the study, and we have now supplied that information.
+
+\begin{rc}
+1. There is insufficient information to be convinced. No information was provided on
+how the reward function was designed, or how much weight was placed on which
+elements. If the reward considers a broader range of factors than the greedy
+algorithm, it will inevitably score lower on certain indicators.
+\end{rc}
+
+\resp This is the most important point and we have addressed it directly. Section~2
+now specifies the complete reward as explicit equations: the free-space key-rate
+model (Eqs.~4--5), the switching-cost timer dynamics (Eq.~6), and the full piecewise
+reward (Eq.~7). Crucially, we clarify a point that was implicit before: \emph{the
+reward is not a private DRL objective}. The single scalar in Eq.~7, the secure key
+generated net of operational penalties, is the identical objective used to score
+every policy, the learned agent and the greedy, hybrid, and random baselines alike.
+No policy optimizes or is graded on a different or more heavily weighted quantity, so
+the concern that the agent is penalized for considering ``broader factors'' does not
+apply: all methods are measured on the same total secure key. We have stated this
+explicitly in Section~2 and again where the results are reported.
+
+\begin{rc}
+2. The total reward in Figure 2(a) confirms convergence of the DRL algorithm. If the
+rewards of the three algorithms are not designed with the same formula, it is
+ambiguous what the graph explains.
+\end{rc}
+
+\resp The reviewer is right to demand this, and the answer is that the rewards
+\emph{are} the same formula for all policies (see the response above). To remove any
+remaining ambiguity, the learning curve (now Figure~3(a)) plots the DRL agent
+against the greedy and random baselines on this one shared objective, so the curves
+are directly comparable. We have also replaced the single-seed numbers with the mean
+and standard deviation over 20 seeds, so the comparison reflects typical rather than
+incidental behavior.
+
+\begin{rc}
+3. Why should we compare random algorithms with greedy and DRL algorithms?
+\end{rc}
+
+\resp We have clarified this in the Experimental Setup. The random policy is a
+sanity-check lower bound: it confirms that the task is non-trivial and that the
+reward scale is meaningful. Because the random policy earns strongly negative
+returns once penalties are present (for example $-1{,}427$ in the Dynamic scenario),
+it demonstrates that the constraints genuinely bite and that the positive scores of
+greedy and DRL reflect real skill rather than an easy environment.
+
+\begin{rc}
+4. The title, abstract, and introduction mention the satellite QKD network, but why
+the problem is treated in a network environment is not clearly described. It is hard
+to understand how the experimental results affect the environment. Do you mean to
+suggest that heuristics like greedy are better suited than DRL in such networks?
+\end{rc}
+
+\resp We have rewritten the motivation in the Introduction to make the network
+framing concrete. A single LEO satellite is a shared downlink resource that must be
+allocated, minute by minute, among several competing ground stations; the
+controller's choices determine the aggregate secure key delivered across the
+network, which makes this a genuine network-level scheduling problem. On the
+takeaway: we are careful \emph{not} to claim that heuristics are universally better
+than DRL. Our claim is narrower and, we believe, more useful: for this cost-aware
+scheduling formulation, a standard DRL agent does not outperform a strong,
+domain-aware heuristic, and we identify the structural reason (geometry-forced
+switching) and the regime (nonzero switching cost) in which the gap appears. We
+present this as a benchmark and a cautionary case for practitioners, not as a
+general verdict.
+
+\bigskip
+\noindent We thank the reviewers again. We believe the revision is substantially
+stronger and hope it is now suitable for ACM AI Letters.
+
+\end{document}

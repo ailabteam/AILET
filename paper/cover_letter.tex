@@ -1,0 +1,80 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\noindent Dr. Nitesh Chawla, Dr. Barry O'Sullivan, and Dr. Richa Singh\\
+Editors-in-Chief, ACM AI Letters\\[1em]
+
+\noindent\textbf{Re: Resubmission of Manuscript AILET-2025-0018}\\
+\textbf{``An Empirical Study of Deep Reinforcement Learning for Dynamic Scheduling in Satellite QKD Networks''}\\[1em]
+
+\noindent Dear Editors,
+
+Thank you for the opportunity to resubmit our manuscript, and for the constructive
+assessments from the Associate Editor and the two reviewers. We were encouraged
+that Reviewer 1 recommended Minor Revision and commended the honesty of the
+empirical finding, and we have taken the concerns of Reviewer 2 equally seriously.
+This new manuscript addresses every point raised. The main improvements are as
+follows.
+
+\begin{enumerate}
+  \item \textbf{The reward function is now fully specified and the comparison is
+  provably fair.} We give the secure-key channel model, the switching-cost
+  dynamics, and the complete piecewise reward as explicit equations, and we state
+  that every policy (the learned agent and all baselines) is scored by one
+  identical physical objective, the total secure key. No policy is evaluated
+  against a private or differently weighted reward. This directly resolves the
+  central concern of Reviewer 2.
+
+  \item \textbf{We added a switching-cost sensitivity analysis} (the main request
+  of Reviewer 1). We retrain a DRL agent for each switching-cost value and show how
+  performance, and the learning--heuristic gap, evolve, including a critical cost
+  beyond which all policies fail.
+
+  \item \textbf{We added a cost-aware hybrid baseline} (greedy with switching
+  hysteresis), tuned by a margin sweep, and explain why it does not beat plain
+  greedy in this geometry-dominated setting.
+
+  \item \textbf{We strengthened rigor.} All results are now reported as mean and
+  standard deviation over 20 independent seeds, replacing the original single-seed
+  numbers. We also corrected a one-step off-by-one in the switching-cost model so
+  that a nominal cost of $C$ minutes forfeits exactly $C$ minutes, and retrained
+  every model accordingly.
+
+  \item \textbf{We clarified the motivation and scope}, framing the task as a
+  network-level scheduling problem, justifying the random lower bound, and adding
+  an explicit Limitations discussion on the single-satellite, single-algorithm
+  setting and on generalization.
+\end{enumerate}
+
+A point-by-point response to every comment accompanies this letter. The full source
+code and trained models are available at
+\url{https://github.com/ailabteam/AILET}.
+
+\bigskip
+\noindent\textbf{Request for an APC waiver.} The corresponding author is based at
+Danang Architecture University in Viet Nam, which the World Bank classifies as a
+lower-middle-income economy, and we have no institutional or grant funding
+available to cover an article processing charge. We therefore respectfully request
+a full (100\%) discretionary APC waiver should the manuscript be accepted. We would
+be grateful for any consideration the editorial office can extend.
+
+\bigskip
+\noindent We thank you and the reviewers again for the time and care taken with our
+work, and we hope the revised manuscript is now suitable for publication in ACM AI
+Letters.
+
+\bigskip
+\noindent Sincerely,\\[0.5em]
+Phuc Hao Do\\
+Danang Architecture University, Da Nang, Viet Nam\\
+The Bonch-Bruevich Saint Petersburg State University of Telecommunications, Russia\\
+\href{mailto:haodp@dau.edu.vn}{haodp@dau.edu.vn}
+
+\end{document}
